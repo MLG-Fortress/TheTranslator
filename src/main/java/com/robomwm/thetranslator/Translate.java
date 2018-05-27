@@ -116,11 +116,40 @@ public class Translate
         }
     }
 
-    public static String translate(String message, String from, String to) throws Exception {
+    public static class TranslateResult
+    {
+        private String result;
+        private String language;
+        private float score;
+
+        TranslateResult(String message, String language, float score)
+        {
+            this.result = message;
+            this.language = language;
+            this.score = score;
+        }
+
+        public String getResult()
+        {
+            return result;
+        }
+
+        public String getLanguage()
+        {
+            return language;
+        }
+
+        public float getScore()
+        {
+            return score;
+        }
+    }
+
+    public static TranslateResult translate(String message, String to) throws Exception {
 
         String params = "&to=" + to + "&profanityAction=Deleted";
-        if (from != null)
-            params += "&from=" + from;
+        //if (from != null)
+        //    params += "&from=" + from;
 
         URL url = new URL (host + translatePath + params);
 
@@ -130,10 +159,11 @@ public class Translate
 
         JSONArray jsonResponse = (JSONArray)new JSONParser().parse(post(url, content));
         JSONObject json = (JSONObject)jsonResponse.get(0);
+        JSONObject detectedLanguage = (JSONObject)json.get("detectedLanguage");
         JSONArray translations = (JSONArray)json.get("translations");
         JSONObject jsonObject = (JSONObject)translations.get(0);
 
-        return (String)jsonObject.get("text");
+        return new TranslateResult((String)jsonObject.get("text"), (String)detectedLanguage.get("language"), (float)detectedLanguage.get("score"));
     }
 
     public static class DetectResult

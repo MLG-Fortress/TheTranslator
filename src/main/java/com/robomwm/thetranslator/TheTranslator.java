@@ -22,8 +22,8 @@ import java.util.concurrent.ConcurrentHashMap;
 public class TheTranslator extends JavaPlugin implements Listener
 {
     Map<String, String> languageCache;
-    Map<Player, String> playerLanguageMap = new ConcurrentHashMap<>();
-    Map<Player, String> originalMessage = new ConcurrentHashMap<>();
+    Map<Player, Integer> englishScore = new ConcurrentHashMap<>();
+    Map<Player, Integer> messageCount = new ConcurrentHashMap<>();
 
     public void onEnable()
     {
@@ -62,80 +62,145 @@ public class TheTranslator extends JavaPlugin implements Listener
         return this;
     }
 
+    //Not guaranteed removal since these are modified asynchronously
     @EventHandler(ignoreCancelled = true)
     private void onQuit(PlayerQuitEvent event)
     {
-        playerLanguageMap.remove(event.getPlayer());
-        originalMessage.remove(event.getPlayer());
+        englishScore.remove(event.getPlayer());
+        messageCount.remove(event.getPlayer());
     }
 
-    private boolean canSpeakEnglish(Player player)
-    {
-        if (!playerLanguageMap.containsKey(player))
-        {
-            if (player.getLocale().toLowerCase().startsWith("en"))
-                setSpeakingEnglish(player);
-            else
-                playerLanguageMap.put(player, "");
-        }
-        return playerLanguageMap.containsKey(player) && playerLanguageMap.get(player).equalsIgnoreCase("en");
-    }
+//    private float isEnglish(String message)
+//    {
+//        try
+//        {
+//            Translate.DetectResult detectResult = Translate.detect(message);
+//            if (detectResult.getLanguage().equals("en"))
+//                return detectResult.getScore();
+//            return 0f;
+//        }
+//        catch (Exception e)
+//        {
+//            e.printStackTrace();
+//            return 0.9f;
+//        }
+//    }
 
-    private void setSpeakingEnglish(Player player)
-    {
-        playerLanguageMap.put(player, "en");
-    }
-
-    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOWEST)
-    private void onChat(AsyncPlayerChatEvent event)
+    private boolean isEnglish(String message)
     {
         try
         {
-            Player player = event.getPlayer();
-            if (canSpeakEnglish(player))
-                return;
-
-            originalMessage.put(player, event.getMessage());
-
-            if (playerLanguageMap.get(player).isEmpty())
-            {
-                //Discover if they're speaking English
-                Translate.DetectResult detectResult = Translate.detect(event.getMessage());
-                if (detectResult.getLanguage().equals("en"))
-                {
-                    //Stop analyzing/translating if we're sure they spoke English (may need to spot check later on)
-                    if (detectResult.getScore() == 1.0f)
-                        setSpeakingEnglish(player);
-                    return;
-                }
-                else if (detectResult.getScore() > 0.5f && player.getLocale().startsWith(detectResult.getLanguage()))
-                    playerLanguageMap.put(player, detectResult.getLanguage());
-                else
-                {
-                    event.setMessage(Translate.translate(event.getMessage(), null, "en"));
-                    return;
-                }
-            }
-
-            event.setMessage(Translate.translate(event.getMessage(), playerLanguageMap.get(player), "en"));
+            Translate.DetectResult detectResult = Translate.detect(message);
+            return detectResult.getLanguage().equals("en");
         }
         catch (Exception e)
         {
             e.printStackTrace();
+            return true;
         }
+    }
+
+    private String translate(Player player, String message)
+    {
+        //No record this session, detect first
+        if (!englishScore.containsKey(player))
+        {
+            if (isEnglish(message))
+            {
+                englishScore.put(player, 3);
+                return null;
+            }
+            englishScore.put(player, -1);
+        }
+
+        int score = englishScore.get(player);
+
+        //passed "test"
+        if (score > 5)
+        {
+            messageCount.putIfAbsent(player, 0);
+            messageCount.put(player, messageCount.get(player) + 1);
+
+            //Double check every ~20 messages
+            if (messageCount.get(player) % 20 == 0)
+            {
+                new BukkitRunnable()
+                {
+                    @Override
+                    public void run()
+                    {
+                        if (!isEnglish(message))
+                            englishScore.put(player, 0);
+                    }
+                }.runTaskAsynchronously(this);
+            }
+            return null;
+        }
+
+        //Seems to be using English, try only detecting
+        if (score > 2 && isEnglish(message))
+        {
+            englishScore.put(player, score + 1);
+            return null;
+        }
+
+        Translate.TranslateResult result;
+
+        try
+        {
+            result = Translate.translate(message, "en");
+        }
+        catch (Exception e)
+        {
+            getLogger().severe("Translation failed for " + player.getName() + ": " + message);
+            e.printStackTrace();
+            return null;
+        }
+
+        //Translation source detected as english, increment score
+        if (result.getLanguage().equals("en"))
+        {
+            englishScore.put(player, englishScore.get(player) + 1);
+            return null;
+        }
+
+        //reset score otherwise, return translation
+        //broadcast if first time
+        if (score < 0)
+        {
+            getServer().dispatchCommand(getServer().getConsoleSender(), "broadcast Translating messages from "
+                    + player.getName() + " from " + languageCache.get(result.getLanguage()) + " to English.\n");
+            getServer().dispatchCommand(getServer().getConsoleSender(), "communicationconnector Translating messages from "
+                    + player.getName() + " from " + languageCache.get(result.getLanguage()) + " to English.\n");
+        }
+
+        getLogger().info(player.getName() + ": " + message);
+        englishScore.put(player, 0);
+        return result.getResult();
+    }
+
+    @EventHandler(ignoreCancelled = true, priority = EventPriority.LOW)
+    private void onChat(AsyncPlayerChatEvent event)
+    {
+        Player player = event.getPlayer();
+        if (player.getLocale().startsWith("en"))
+            return;
+        String result = translate(player, event.getMessage());
+        if (result == null)
+            return;
+        event.setMessage(result);
     }
 
     public boolean onCommand(CommandSender sender, Command cmd, String label, String[] args)
     {
-        if (!(sender instanceof Player))
-            return false;
-
         if (args.length == 0 || args[0].equalsIgnoreCase("list"))
         {
-            return true;
+            for (String key : languageCache.keySet())
+            {
+                sender.sendMessage(key + " " + languageCache.get(key));
+            }
         }
 
-        playerLanguageMap.put((Player)sender, args[0]);
         return true;
     }
 }
