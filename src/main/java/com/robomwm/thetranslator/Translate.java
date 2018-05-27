@@ -61,7 +61,7 @@ public class Translate
         {
             String key = (String) codeObject;
             JSONObject code = (JSONObject)json.get(key);
-            pairings.put(key, (String)code.get("nativeName"));
+            pairings.put(key, code.get("name") + " (" + code.get("nativeName") + ")");
         }
 
         return pairings;

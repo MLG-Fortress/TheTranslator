@@ -168,10 +168,17 @@ public class TheTranslator extends JavaPlugin implements Listener
         //broadcast if first time
         if (score < 0)
         {
-            getServer().dispatchCommand(getServer().getConsoleSender(), "broadcast Translating messages from "
-                    + player.getName() + " from " + languageCache.get(result.getLanguage()) + " to English.\n");
-            getServer().dispatchCommand(getServer().getConsoleSender(), "communicationconnector Translating messages from "
-                    + player.getName() + " from " + languageCache.get(result.getLanguage()) + " to English.\n");
+            new BukkitRunnable()
+            {
+                @Override
+                public void run()
+                {
+                    getServer().dispatchCommand(getServer().getConsoleSender(), "broadcast Translating messages from "
+                            + player.getName() + " from " + languageCache.get(result.getLanguage()) + " to English.\n");
+                    getServer().dispatchCommand(getServer().getConsoleSender(), "communicationconnector Translating messages from "
+                            + player.getName() + " from " + languageCache.get(result.getLanguage()) + " to English.\n");
+                }
+            }.runTask(this);
         }
 
         getLogger().info(player.getName() + ": " + message);
