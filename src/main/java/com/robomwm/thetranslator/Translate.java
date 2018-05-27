@@ -106,9 +106,9 @@ public class Translate
     {
         private String original;
         private String text;
-        private float score;
+        private double score;
 
-        TranslatedText(String original, String translated, float score)
+        TranslatedText(String original, String translated, double score)
         {
             this.original = original;
             this.text = translated;
@@ -120,9 +120,9 @@ public class Translate
     {
         private String result;
         private String language;
-        private float score;
+        private double score;
 
-        TranslateResult(String message, String language, float score)
+        TranslateResult(String message, String language, double score)
         {
             this.result = message;
             this.language = language;
@@ -139,7 +139,7 @@ public class Translate
             return language;
         }
 
-        public float getScore()
+        public double getScore()
         {
             return score;
         }
@@ -163,15 +163,15 @@ public class Translate
         JSONArray translations = (JSONArray)json.get("translations");
         JSONObject jsonObject = (JSONObject)translations.get(0);
 
-        return new TranslateResult((String)jsonObject.get("text"), (String)detectedLanguage.get("language"), (float)detectedLanguage.get("score"));
+        return new TranslateResult((String)jsonObject.get("text"), (String)detectedLanguage.get("language"), (double)detectedLanguage.get("score"));
     }
 
     public static class DetectResult
     {
         private String language;
-        private float score;
+        private double score;
 
-        DetectResult(String language, float score)
+        DetectResult(String language, double score)
         {
             this.language = language;
             this.score = score;
@@ -182,7 +182,7 @@ public class Translate
             return language;
         }
 
-        public float getScore()
+        public double getScore()
         {
             return score;
         }
@@ -201,7 +201,7 @@ public class Translate
         JSONObject json = (JSONObject)jsonResponse.get(0);
 
 
-        return new DetectResult((String)json.get("language"), (float)json.get("score"));
+        return new DetectResult((String)json.get("language"), (double)json.get("score"));
     }
 
 }
