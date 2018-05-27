@@ -1,0 +1,8 @@
+name: TheTranslator
+version: ${project.version}
+website: https://robomwm.com
+author: RoboMWM
+main: com.robomwm.thetranslator.TheTranslator
+commands:
+  thetranslator:
+    aliases: [thetranslater, translate, language, lang, setlang, setlanguage, tr, ttr, tt]
