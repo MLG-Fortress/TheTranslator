@@ -181,7 +181,7 @@ public class TheTranslator extends JavaPlugin implements Listener
             }.runTask(this);
         }
 
-        getLogger().info(player.getName() + ": " + message);
+        getLogger().info(player.getName() + " " + result.getLanguage() + result.getScore() + ": " + message);
         englishScore.put(player, 0);
         return result.getResult();
     }
